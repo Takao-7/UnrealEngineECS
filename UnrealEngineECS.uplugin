@@ -1,0 +1,24 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "UnrealEngineECS",
+	"Description": "Entiy-Component-System plugin for Unreal Engine",
+	"Category": "Other",
+	"CreatedBy": "Paul Larrass",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "UnrealEngineECS",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	]
+}
