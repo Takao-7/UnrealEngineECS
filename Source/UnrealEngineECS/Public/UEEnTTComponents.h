@@ -18,17 +18,23 @@ struct FNameComponent
 };
 
 //////////////////////////////////////////////////
-/* Holds a weak object pointer to an actor */
+/* Holds a weak object pointer to an actor. Added by the UECS_BridgeComponent to it's entity */
 struct FActorPtrComponent
 {
     FActorPtrComponent(AActor* Actor);
     TWeakObjectPtr<AActor> Pointer;
+
+    AActor* operator->() const
+    {
+        return Pointer.Get();
+    }
 };
 
 //////////////////////////////////////////////////
 struct FRelationship
 {
     FRelationship(){}
+    
     /**
      * @param Parent    The entity which our owner is now attached, too
      * @param Owner     The entity that owns this component
@@ -39,6 +45,11 @@ struct FRelationship
         
         Prev = Parent.GetComponent<FRelationship>().LastChild();
         Prev.GetComponent<FRelationship>().Next = Owner;
+    }
+    
+    ~FRelationship()
+    {
+        
     }
     
     /** Call the given function for all of our children. Assumes that all children have the relationship component! */
@@ -69,16 +80,16 @@ struct FRelationship
     //---------- Variables ----------//
 public:
     /* The first entity which is attached to us */
-    FEntity First;
+    FEntity First = FEntity::NullEntity;
 
     /* When we are attached to an entity, this is our previous sibling in our parent's list of children */
-    FEntity Prev;
+    FEntity Prev = FEntity::NullEntity;
 
     /* When we are attached to an entity, this is our next sibling in our parent's list of children */
-    FEntity Next;
+    FEntity Next = FEntity::NullEntity;
 
     /* The entity that we are attached, too */
-    FEntity Parent;
+    FEntity Parent = FEntity::NullEntity;
 };
 
 
@@ -96,22 +107,20 @@ enum class ESyncType : uint8
     BothWays
 };
 
-USTRUCT()
-struct FTransformSync
+struct FSyncTransformToECS
+{
+    /* Flag set by the actor component to indicate that the actor's transform changed and should be synced to ECS.
+     * This is done because the ECS can run multi-threaded and we want to ensure that the transform is only synced to the ECS before
+     * any system has updated */
+    bool bSyncTransform = false;
+};
+
+USTRUCT(BlueprintType)
+struct FSyncTransformToActor
 {
     GENERATED_BODY()
 
-    FTransformSync(){}
-    FTransformSync(ESyncType SyncType, bool bSweep, ETeleportType TeleportType)
-    {
-        this->SyncType = SyncType;
-        this->bSweep = bSweep;
-        this->TeleportType = TeleportType;
-    }
-
-    UPROPERTY(EditDefaultsOnly)
-    ESyncType SyncType = ESyncType::ECS_To_Actor;
-
+    /* When synchronising the transform from ECS to actor, should we sweep the actor to the new transform? */
     UPROPERTY(EditDefaultsOnly)
     bool bSweep = false;
 
@@ -131,7 +140,6 @@ class UNREALENGINEECS_API UECS_BridgeComponent : public UActorComponent, public 
     GENERATED_BODY()
 
 public:
-    UECS_BridgeComponent();
     virtual void BeginPlay() override;
     virtual void RegisterComponentWithECS() override {};
 };
@@ -141,17 +149,28 @@ public:
 //////////////////////////////////////////////////
 /** Synchronises this owner's transform with the ECS */
 UCLASS(ClassGroup = "ECS", BlueprintType, meta = (BlueprintSpawnableComponent, DisplayName = "ECS Transform Component"))
-class UNREALENGINEECS_API UECS_TransformSyncComponent : public UActorComponent, public IECSComponentWrapper
+class UNREALENGINEECS_API UECS_SyncTransformComponent : public UActorComponent, public IECSComponentWrapper
 {
     GENERATED_BODY()
 
 public:
-    UECS_TransformSyncComponent();
     virtual void RegisterComponentWithECS() override;
+    virtual void UpdateECSComponent_Implementation() override;
+
+private:
+    void OnRootComponentTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags,
+                                         ETeleportType Teleport);
 
 protected:
+    UPROPERTY(EditDefaultsOnly, Category = "ECS")
+    ESyncType SyncType = ESyncType::BothWays;
+
     /* Default parameters for this component. When changed after BeginPlay(), you have to call UpdateECSComponent() in order to copy the
     * new values to the ECS component. @see UpdateDefaultsFromECS() */
-    UPROPERTY(EditDefaultsOnly, Category = "ECS")
-    FTransformSync DefaultComponentParams;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (EditCondition = "SyncType == ESyncType::BothWays || SyncType == ECS_To_Actor"),
+              Category = "ECS")
+    FSyncTransformToActor DefaultValues;
+
+private:
+    FDelegateHandle TransformChangedHandle;
 };

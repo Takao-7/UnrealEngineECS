@@ -4,15 +4,6 @@
 
 #include "ECSGameInstanceInterface.h"
 
-void IECSComponentWrapper::RegisterComponentWithECS()
-{
-	if (EntityHandle == FEntity::NullEntity)
-	{
-		FRegistry& Registry = IECSGameInstanceInterface::GetRegistry(reinterpret_cast<UObject*>(this));
-		EntityHandle = Registry.CreateEntity();			
-	}
-}
-
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -25,11 +16,6 @@ FActorPtrComponent::FActorPtrComponent(AActor* Actor)
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-UECS_BridgeComponent::UECS_BridgeComponent()
-{
-	PrimaryComponentTick.bCanEverTick = false;
-}
-
 void UECS_BridgeComponent::BeginPlay()
 {
 	Super::BeginPlay();
@@ -42,7 +28,7 @@ void UECS_BridgeComponent::BeginPlay()
 	// Register all other ECS components from our owner
 	for (auto Component : GetOwner()->GetComponents())
 	{
-		if(IECSComponentWrapper* WrapperComp = Cast<IECSComponentWrapper>(Component))
+		if (IECSComponentWrapper* WrapperComp = Cast<IECSComponentWrapper>(Component))
 		{
 			WrapperComp->EntityHandle = EntityHandle;
 			WrapperComp->RegisterComponentWithECS();
@@ -52,13 +38,64 @@ void UECS_BridgeComponent::BeginPlay()
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-UECS_TransformSyncComponent::UECS_TransformSyncComponent()
+void UECS_SyncTransformComponent::RegisterComponentWithECS()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	IECSComponentWrapper::RegisterComponentWithECS();
+	
+	EntityHandle.AddOrReplaceComponent<FTransform>(GetOwner()->GetActorTransform());
+
+	UpdateECSComponent_Implementation();
 }
 
-void UECS_TransformSyncComponent::RegisterComponentWithECS()
+void UECS_SyncTransformComponent::UpdateECSComponent_Implementation()
 {
-	EntityHandle.AddComponent<FTransform>(GetOwner()->GetActorTransform());
-	EntityHandle.AddComponent<FTransformSync>(DefaultComponentParams);
+	if (SyncType == ESyncType::Disabled)
+	{
+		GetOwner()->GetRootComponent()->TransformUpdated.Remove(TransformChangedHandle);
+		TransformChangedHandle.Reset();
+
+		EntityHandle.RemoveComponentChecked<FSyncTransformToECS>();
+		EntityHandle.RemoveComponentChecked<FSyncTransformToActor>();
+		return;
+	}
+
+	if (SyncType == ESyncType::Actor_To_ECS)
+	{
+		EntityHandle.RemoveComponentChecked<FSyncTransformToActor>();		
+		EntityHandle.AddOrReplaceComponent<FSyncTransformToECS>();
+
+		if (!TransformChangedHandle.IsValid())
+		{
+			TransformChangedHandle = GetOwner()->GetRootComponent()->TransformUpdated.AddUObject(this,
+				&UECS_SyncTransformComponent::OnRootComponentTransformChanged);
+		}
+	}
+	else if (SyncType == ESyncType::ECS_To_Actor)
+	{
+		if (EntityHandle.RemoveComponentChecked<FSyncTransformToECS>())
+		{
+			GetOwner()->GetRootComponent()->TransformUpdated.Remove(TransformChangedHandle);
+			TransformChangedHandle.Reset();
+		}
+		
+		EntityHandle.AddOrReplaceComponent<FSyncTransformToActor>(DefaultValues);
+	}
+	else if (SyncType == ESyncType::BothWays)
+	{
+		EntityHandle.AddOrReplaceComponent<FSyncTransformToECS>();
+		EntityHandle.AddOrReplaceComponent<FSyncTransformToActor>(DefaultValues);
+
+		if (!TransformChangedHandle.IsValid())
+		{
+			TransformChangedHandle = GetOwner()->GetRootComponent()->TransformUpdated.AddUObject(this,
+                &UECS_SyncTransformComponent::OnRootComponentTransformChanged);
+		}
+	}
+}
+
+//////////////////////////////////////////////////
+void UECS_SyncTransformComponent::OnRootComponentTransformChanged(USceneComponent* UpdatedComponent,
+																  EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
+{
+	EntityHandle.GetComponent<FSyncTransformToECS>().bSyncTransform = true;
 }

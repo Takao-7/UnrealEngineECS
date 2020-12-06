@@ -1,13 +1,22 @@
 ﻿// Copyright @Paul Larrass 2020
 
 #pragma once
+
+#include "CoreMinimal.h"
+#include "UEEnTTRegistry.h"
+
 #include <entity/fwd.hpp>
 #include <entity/entity.hpp>
 
+#include "UEEnTTEntity.generated.h"
+
 
 /** Entity struct. Because of it's small size, you don't need to pass it around by reference, instead just copy it */
+USTRUCT(BlueprintType)
 struct UNREALENGINEECS_API FEntity
 {
+    GENERATED_BODY()
+    
     friend struct FRegistry;
     
 public:
@@ -21,14 +30,30 @@ public:
     template<typename Component, typename... Args>
     Component& AddComponent(Args&&... args);
 
-    /** Add the given component to this entity, if it doesn't have it and use the provided parameters for the constructor.
-     * Otherwise override the component's variable with the given parameters and return the existing component. */
+    /**
+     * @brief Assigns or replaces the given component for an entity.
+     *
+     * @tparam Component Type of component to assign or replace.
+     * @tparam Args Types of arguments to use to construct the component.
+     * @param args Parameters to use to initialize the component.
+     * @return A reference to the newly created component.
+     */
     template<typename Component, typename... Args>
-    Component& AddComponent_Checked(bool bOverrideExistingComponent, Args&&... args);
+    decltype(auto) AddOrReplaceComponent(Args&&... args)
+    {
+        return OwningRegistry->EnTTRegistry.emplace_or_replace<Component, Args...>(EntityHandle, std::forward<Args>(args)...);
+    }
 
     /** Removes the given component from this entity. Asserts when we don't have the component */
     template<typename Component>
     void RemoveComponent();
+    
+    /**
+     * Removes the given component from this entity, if we have it
+     * @eturn Did we had the component?
+     */
+    template<typename Component>
+    bool RemoveComponentChecked();
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
     template<typename Component>
@@ -40,7 +65,11 @@ public:
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
     template<typename... Component>
-    decltype(auto) GetComponents();
+    decltype(auto) GetComponents()
+    {
+        checkf(HasAllComponent<Component...>(), TEXT("We don't have all components with these classes"));
+        return OwningRegistry->EnTTRegistry.get<Component...>(EntityHandle);
+    }
 
     /** Does this entity has a component from class T? */
     template<typename Component>
@@ -71,7 +100,7 @@ private:
     /* uint32 identifier for this entity. Note that 0 is a legal entity! */
     entt::entity EntityHandle = entt::null;
 
-    /* The registry where this entity belongs to. We can use a raw pointer here, because entities are only valid to use while their
-     * registry is valid. Furthermore, FEntity can only be created with a valid reference to an registry */
+    /* The registry where this entity belongs to. Note that this is a raw pointer, however the main registry is (should be) in the game
+     * instance object, which get's only destroyed when the is closed */
     FRegistry* OwningRegistry = nullptr;
 };
