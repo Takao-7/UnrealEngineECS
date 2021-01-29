@@ -64,33 +64,33 @@ IECSGameInstanceInterface::IECSGameInstanceInterface()
 	PrePhysicsTickFunction.Registry = &Registry;
 	DuringPhysicsTickFunction.Registry = &Registry;
 	PostPhysicsTickFunction.Registry = &Registry;
-
-	// Connect observer for our sync transform systems
-	PrePhysicsTickFunction.ObserverSyncTransformToECS.Connect(Registry,
-		ECSCollector.update<FSyncTransformToECS>().where<FTransform, const FActorPtrComponent>());
-	PrePhysicsTickFunction.ObserverSyncTransformToActor.Connect(Registry,
-		ECSCollector.update<FSyncTransformToActor>().where<const FTransform, const FActorPtrComponent>());
+	
+	// Connect observers for our sync transform systems. 
+	PrePhysicsTickFunction.ObserverSyncTransformToECS.connect(Registry,
+		entt::collector.update<FSyncTransformToECS>().where<FTransform, FActorPtrComponent>());
+	PrePhysicsTickFunction.ObserverSyncTransformToActor.connect(Registry,
+		entt::collector.update<FTransform>().where<FSyncTransformToActor, FActorPtrComponent>());
 }
 
 //////////////////////////////////////////////////
-FRegistry& IECSGameInstanceInterface::GetRegistry(UObject* ObjectRef)
+entt::registry& IECSGameInstanceInterface::GetRegistry(UObject* ObjectRef)
 {
 	UWorld* World = ObjectRef->GetWorld();
 	return reinterpret_cast<IECSGameInstanceInterface*>(World->GetGameInstance())->Registry;
 }
 
-FRegistry& IECSGameInstanceInterface::GetRegistry()
+entt::registry& IECSGameInstanceInterface::GetRegistry()
 {
 	return Registry;
 }
 
-const FRegistry& IECSGameInstanceInterface::GetRegistry() const
+const entt::registry& IECSGameInstanceInterface::GetRegistry() const
 {
 	return Registry;
 }
 
 //////////////////////////////////////////////////
-FDelegateHandle IECSGameInstanceInterface::AddSystem(TBaseStaticDelegateInstance<void (float, FRegistry&)>::FFuncPtr InFunc,
+FDelegateHandle IECSGameInstanceInterface::AddSystem(TBaseStaticDelegateInstance<void (float, entt::registry&)>::FFuncPtr InFunc,
 													 ESystemTickingGroup TickingGroup)
 {
 	switch (TickingGroup)
@@ -107,7 +107,7 @@ FDelegateHandle IECSGameInstanceInterface::AddSystem(TBaseStaticDelegateInstance
 
 template <typename UserClass>
 FDelegateHandle IECSGameInstanceInterface::AddSystem(UserClass* InUserObject,
-													 typename TMemFunPtrType<false, UserClass, void(float, FRegistry&)>::Type InFunc,
+													 typename TMemFunPtrType<false, UserClass, void(float, entt::registry&)>::Type InFunc,
 													 ESystemTickingGroup TickingGroup)
 {
 	switch (TickingGroup)
@@ -122,7 +122,7 @@ FDelegateHandle IECSGameInstanceInterface::AddSystem(UserClass* InUserObject,
 	}
 }
 
-FDelegateHandle IECSGameInstanceInterface::AddSystem(TFunction<void(float, FRegistry&)> Lambda, ESystemTickingGroup TickingGroup)
+FDelegateHandle IECSGameInstanceInterface::AddSystem(TFunction<void(float, entt::registry&)> Lambda, ESystemTickingGroup TickingGroup)
 {
 	switch (TickingGroup)
 	{
@@ -165,11 +165,10 @@ void IECSGameInstanceInterface::HandleWorldChange(UWorld* OldWorld, UWorld* NewW
 	// Setup and register tick functions for systems
 	if (NewWorld != nullptr)
 	{
-		ULevel* PersistentLevel = NewWorld->PersistentLevel;
-		
 		DuringPhysicsTickFunction.SetTickGroup(ETickingGroup::TG_DuringPhysics);
 		PostPhysicsTickFunction.SetTickGroup(ETickingGroup::TG_PostPhysics);
 		
+		ULevel* PersistentLevel = NewWorld->PersistentLevel;
 		PrePhysicsTickFunction.RegisterTickFunction(PersistentLevel);
 		DuringPhysicsTickFunction.RegisterTickFunction(PersistentLevel);
 		PostPhysicsTickFunction.RegisterTickFunction(PersistentLevel);		

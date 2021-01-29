@@ -3,11 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
-#include "ECSObserver.h"
+#include "ECSIncludes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/GameInstance.h"
-#include "UEEnTTRegistry.h"
 
 #include "ECSGameInstanceInterface.generated.h"
 
@@ -20,10 +18,10 @@ struct FSyncTransformToActor;
 
 /**
 * Delegate to bind systems.
-* @param float			Delta time for this frame
-* @param FRegistry&		The registry from which the system is called
+* @param float				Delta time for this frame
+* @param entt::registry&	The registry from which the system is called
 */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FSystemTickFunctionDelegate, float, FRegistry&);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FSystemTickFunctionDelegate, float, entt::registry&);
 
 
 //////////////////////////////////////////////////
@@ -36,7 +34,7 @@ struct UNREALENGINEECS_API FSystemTickFunction : public FTickFunction
 	void SetTickGroup(ETickingGroup TickingGroup);
 
 	FSystemTickFunctionDelegate Systems;
-	FRegistry* Registry = nullptr;
+	entt::registry* Registry = nullptr;
 	
 private:
 	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread,
@@ -52,8 +50,8 @@ struct UNREALENGINEECS_API FPrePhysicsSystemTickFunction : public FSystemTickFun
 {
 	FPrePhysicsSystemTickFunction();
 
-	TObserver<const FActorPtrComponent, FTransform, FSyncTransformToECS> ObserverSyncTransformToECS;
-	TObserver<const FActorPtrComponent, const FTransform, FSyncTransformToActor> ObserverSyncTransformToActor;
+	entt::observer ObserverSyncTransformToECS;
+	entt::observer ObserverSyncTransformToActor;
 
 private:
 	virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread,
@@ -89,22 +87,22 @@ public:
 	 * Returns the main registry for this game instance. Will crash when the object is invalid or our game instance does not inherit
 	 * from IECSGameInstanceInterface!
 	 */
-	static FRegistry& GetRegistry(UObject* ObjectRef);
+	static entt::registry& GetRegistry(UObject* ObjectRef);
 
-	FRegistry& GetRegistry();
-	const FRegistry& GetRegistry() const;
+	entt::registry& GetRegistry();
+	const entt::registry& GetRegistry() const;
 
 	/** Add a system as a free function (= function pointer), which is ticked in the provided ticking group */
-	FDelegateHandle AddSystem(TBaseStaticDelegateInstance<void (float, FRegistry&)>::FFuncPtr InFunc,
+	FDelegateHandle AddSystem(TBaseStaticDelegateInstance<void (float, entt::registry&)>::FFuncPtr InFunc,
 							  ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
 
 	/** Add a system as a Ufunction, which is ticked in the provided ticking group */
 	template <typename UserClass>
-	FDelegateHandle AddSystem(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (float, FRegistry&)>::Type InFunc,
+	FDelegateHandle AddSystem(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (float, entt::registry&)>::Type InFunc,
 							  ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
 
 	/** Add a system as a TFunction or lambda, which is ticked in the provided ticking group */
-	FDelegateHandle AddSystem(TFunction<void (float, FRegistry&)> Lambda,
+	FDelegateHandle AddSystem(TFunction<void (float, entt::registry&)> Lambda,
 							  ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
 
 	/** Remove a system */
@@ -117,7 +115,7 @@ protected:
 	
 	//---------- Variables ----------//	
 protected:
-	FRegistry Registry;
+	entt::registry Registry;
 
 	/* Systems which run before the physics simulation */
 	FPrePhysicsSystemTickFunction PrePhysicsTickFunction;

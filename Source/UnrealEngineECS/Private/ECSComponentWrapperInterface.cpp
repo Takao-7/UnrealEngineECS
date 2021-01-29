@@ -15,8 +15,8 @@ void IECSComponentWrapper::RegisterComponentWithECS()
 {
 	if (EntityHandle == FEntity::NullEntity)
 	{
-		FRegistry& Registry = IECSGameInstanceInterface::GetRegistry(reinterpret_cast<UObject*>(this));
-		EntityHandle = Registry.CreateEntity();
+		entt::registry& Registry = IECSGameInstanceInterface::GetRegistry(reinterpret_cast<UObject*>(this));
+		EntityHandle = Registry.create();
 	}
 }
 

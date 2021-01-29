@@ -20,11 +20,17 @@ struct FNameComponent
 //////////////////////////////////////////////////
 /* Holds a weak object pointer to an actor. Added by the UECS_BridgeComponent to it's entity */
 struct FActorPtrComponent
-{
+{    
     FActorPtrComponent(AActor* Actor);
+
     TWeakObjectPtr<AActor> Pointer;
 
-    AActor* operator->() const
+    const AActor* operator->() const
+    {
+        return Pointer.Get();
+    }
+
+    AActor* operator->()
     {
         return Pointer.Get();
     }
@@ -126,6 +132,9 @@ struct FSyncTransformToActor
 
     UPROPERTY(EditDefaultsOnly)
     ETeleportType TeleportType = ETeleportType::None;
+
+    /* Flag which indicates if the transform should be synced from ECS to the actor */
+    bool bSyncTransform = true;
 };
 
 

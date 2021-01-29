@@ -3,11 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UEEnTTRegistry.h"
-
-#include <entity/fwd.hpp>
-#include <entity/entity.hpp>
-
+#include "ECSIncludes.h"
 #include "UEEnTTEntity.generated.h"
 
 
@@ -17,11 +13,11 @@ struct UNREALENGINEECS_API FEntity
 {
     GENERATED_BODY()
     
-    friend struct FRegistry;
+    friend class entt::registry;
     
 public:
     FEntity(){}
-    FEntity(entt::entity Handle, struct FRegistry& Registry);
+    FEntity(entt::entity Handle, entt::registry& Registry);
 
 
     //---------- Functions ----------//
@@ -41,7 +37,7 @@ public:
     template<typename Component, typename... Args>
     decltype(auto) AddOrReplaceComponent(Args&&... args)
     {
-        return OwningRegistry->EnTTRegistry.emplace_or_replace<Component, Args...>(EntityHandle, std::forward<Args>(args)...);
+        return OwningRegistry->emplace_or_replace<Component, Args...>(EntityHandle, std::forward<Args>(args)...);
     }
 
     /** Removes the given component from this entity. Asserts when we don't have the component */
@@ -68,7 +64,7 @@ public:
     decltype(auto) GetComponents()
     {
         checkf(HasAllComponent<Component...>(), TEXT("We don't have all components with these classes"));
-        return OwningRegistry->EnTTRegistry.get<Component...>(EntityHandle);
+        return OwningRegistry->get<Component...>(EntityHandle);
     }
 
     /** Does this entity has a component from class T? */
@@ -102,5 +98,5 @@ private:
 
     /* The registry where this entity belongs to. Note that this is a raw pointer, however the main registry is (should be) in the game
      * instance object, which get's only destroyed when the is closed */
-    FRegistry* OwningRegistry = nullptr;
+    entt::registry* OwningRegistry = nullptr;
 };

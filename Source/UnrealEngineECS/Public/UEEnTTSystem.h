@@ -2,13 +2,12 @@
 
 #pragma once
 
-struct FRegistry;
+#include "ECSIncludes.h"
+
 struct FSyncTransformToActor;
 struct FSyncTransformToECS;
 struct FActorPtrComponent;
 
-template<typename...>
-class TObserver;
 
 /**
  * Interface for non-static systems, which shouldn't run each tick
@@ -21,10 +20,10 @@ public:
     virtual ~IInstancedSystem() = default;
 
 	/** Called by the game instance to try to update this system */
-    void TryTickSystem(float DeltaTime, FRegistry& Registry);
+    void TryTickSystem(float DeltaTime, entt::registry& Registry);
 
 protected:
-	virtual void TickSystem(float DeltaTime, FRegistry& Registry) const = 0;
+	virtual void TickSystem(float DeltaTime, entt::registry& Registry) const = 0;
 
 public:
 	/* Delay between updates. Set to <= 0 to update each tick. Can be changed freely at runtime */
@@ -39,7 +38,6 @@ private:
 //////////////////////////////////////////////////
 namespace ECSCoreSystems
 {
-	
 	/**
 	 * Copy transforms from actors to the ECS.
 	 * Called in PrePhysics ticking group BEFORE any other system is updated.
@@ -47,7 +45,7 @@ namespace ECSCoreSystems
 	 * Required components: FActorPtrComponent, FTransform, FTransformSync
 	 * Required actor component: UECS_TransformSyncComponent 
 	 */
-	void CopyTransformToECS(FRegistry& Registry, TObserver<const FActorPtrComponent, FTransform, FSyncTransformToECS>& Observer);
+	void CopyTransformToECS(entt::registry& Registry, entt::observer& Observer);
 	
 	/**
 	 * Copy transforms from the ECS to the linked actor.
@@ -56,5 +54,5 @@ namespace ECSCoreSystems
 	 * Required components: FActorPtrComponent, FTransform & FTransformSync
 	 * Required actor component: UECS_TransformSyncComponent
 	 */
-	void CopyTransformToActor(FRegistry& Registry, TObserver<const FActorPtrComponent, const FTransform, FSyncTransformToActor>& Observer);
+	void CopyTransformToActor(entt::registry& Registry, entt::observer& Observer);
 }

@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-#include "ECSObserver.h"
 #include "UEEnTTComponents.h"
 
 
@@ -13,7 +12,7 @@ DECLARE_CYCLE_STAT(TEXT("Copy transforms from actors to ECS"), STAT_CopyTransfor
 
 
 //////////////////////////////////////////////////
-void IInstancedSystem::TryTickSystem(float DeltaTime, FRegistry& Registry)
+void IInstancedSystem::TryTickSystem(float DeltaTime, entt::registry& Registry)
 {
 	if (UpdateInterval <= .0f)
 	{
@@ -30,46 +29,29 @@ void IInstancedSystem::TryTickSystem(float DeltaTime, FRegistry& Registry)
 }
 
 //////////////////////////////////////////////////
-void ECSCoreSystems::CopyTransformToECS(FRegistry& Registry, TObserver<const FActorPtrComponent, FTransform, FSyncTransformToECS>& Observer)
+void ECSCoreSystems::CopyTransformToECS(entt::registry& Registry, entt::observer& Observer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CopyTransformToECS);
 
-	Observer.Each([](FEntity Entity)
+	Observer.each([&Registry](const entt::entity Entity)
 	{
-		// Get the components from the entity
-		auto&& [Actor, Transform, SyncComp] = Entity.GetComponents<const FActorPtrComponent, FTransform, FSyncTransformToECS>();
-
+		auto&& [Actor, Transform, SyncComp] = Registry.get<FActorPtrComponent, FTransform, FSyncTransformToECS>(Entity);
+		
 		Transform = Actor->GetActorTransform();
 		SyncComp.bSyncTransform = false;
 	});
-		
-	//auto View = Registry.View<const FActorPtrComponent, FTransform, const FTransformSync>();
-	// for (auto&& [Entity, Actor, Transform, SyncComp] : View)
-	// {
-	// 	if (SyncComp.SyncType == ESyncType::Actor_To_ECS || SyncComp.SyncType == ESyncType::BothWays)
-	// 	{
-	// 		Transform = Actor->GetActorTransform();
-	// 	}
-	// }
 }
 
-void ECSCoreSystems::CopyTransformToActor(FRegistry& Registry, TObserver<const FActorPtrComponent, const FTransform,
-										  FSyncTransformToActor>& Observer)
+void ECSCoreSystems::CopyTransformToActor(entt::registry& Registry, entt::observer& Observer)
 {
 	SCOPE_CYCLE_COUNTER(STAT_CopyTransformToActor);
 
-	Observer.Each([](FEntity Entity)
+	Observer.each([&Registry](const entt::entity Entity)
 	{
-		auto&& [Actor, Transform, SyncComp] = Entity.GetComponents<const FActorPtrComponent, const FTransform, FSyncTransformToActor>();
-		Actor->SetActorTransform(Transform, SyncComp.bSweep, nullptr, SyncComp.TeleportType);
+		auto&& [Actor, Transform, SyncComp] = Registry.get<FActorPtrComponent, FTransform, FSyncTransformToActor>(Entity);
+		if (SyncComp.bSyncTransform)
+		{
+			Actor->SetActorTransform(Transform, SyncComp.bSweep, nullptr, SyncComp.TeleportType);			
+		}
 	});
-	
-	// auto View = Registry.View<const FActorPtrComponent, const FTransform, const FTransformSync>();
-	// for (auto&& [Entity, Actor, Transform, SyncComp] : View.each())
-	// {
-	// 	if (SyncComp.SyncType == ESyncType::ECS_To_Actor || SyncComp.SyncType == ESyncType::BothWays)
-	// 	{
-	// 		Actor->SetActorTransform(Transform, SyncComp.bSweep, nullptr, SyncComp.TeleportType);
-	// 	}
-	// }
 }
