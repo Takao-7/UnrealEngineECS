@@ -24,7 +24,11 @@ public:
 public:
     /** Add a component and pass through it's constructor arguments */
     template<typename Component, typename... Args>
-    Component& AddComponent(Args&&... args);
+	Component& AddComponent(Args&&... args)
+    {
+    	checkf(!HasComponent<Component>(), TEXT("We already have a component with that class"));
+    	return OwningRegistry->emplace<Component>(EntityHandle, std::forward<Args>(args)...);
+    }
 
     /**
      * @brief Assigns or replaces the given component for an entity.
@@ -42,22 +46,37 @@ public:
 
     /** Removes the given component from this entity. Asserts when we don't have the component */
     template<typename Component>
-    void RemoveComponent();
+	void RemoveComponent()
+    {
+    	checkf(HasComponent<Component>(), TEXT("We don't have a component with that class"));
+    	OwningRegistry->remove<Component>(EntityHandle);
+    }
     
     /**
      * Removes the given component from this entity, if we have it
      * @eturn Did we had the component?
      */
     template<typename Component>
-    bool RemoveComponentChecked();
+	bool RemoveComponentChecked()
+    {
+    	return OwningRegistry->remove_if_exists<Component>(EntityHandle) > 0;
+    }
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
     template<typename Component>
-    Component& GetComponent();
+	Component& GetComponent()
+    {
+    	checkf(HasComponent<Component>(), TEXT("We don't have a component with that class"));
+    	return OwningRegistry->get<Component>(EntityHandle);
+    }
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
     template<typename Component>
-    Component& GetComponent() const;
+	Component& GetComponent() const
+    {
+    	checkf(HasComponent<Component>(), TEXT("We don't have a component with that class"));
+    	return OwningRegistry->get<Component>(EntityHandle);
+    }
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
     template<typename... Component>
@@ -67,17 +86,19 @@ public:
         return OwningRegistry->get<Component...>(EntityHandle);
     }
 
-    /** Does this entity has a component from class T? */
-    template<typename Component>
-    bool HasComponent() const;
-
     /** Do we have any of the given components? */
-    template<typename... Components>
-    bool HasAnyComponent() const;
+    template<typename... Component>
+	bool HasComponent() const
+    {
+    	return OwningRegistry->any<Component...>(EntityHandle);
+    }
 
     /** Do we have all of the given components? */
-    template<typename... Components>
-    bool HasAllComponent() const;
+    template<typename... Component>
+	bool HasAllComponent() const
+    {
+    	return OwningRegistry->has<Component...>(EntityHandle);
+    }
 
 
     //---------- Operators ----------//

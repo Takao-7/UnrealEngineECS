@@ -93,17 +93,7 @@ public:
 	const entt::registry& GetRegistry() const;
 
 	/** Add a system as a free function (= function pointer), which is ticked in the provided ticking group */
-	FDelegateHandle AddSystem(TBaseStaticDelegateInstance<void (float, entt::registry&)>::FFuncPtr InFunc,
-							  ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
-
-	/** Add a system as a Ufunction, which is ticked in the provided ticking group */
-	template <typename UserClass>
-	FDelegateHandle AddSystem(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (float, entt::registry&)>::Type InFunc,
-							  ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
-
-	/** Add a system as a TFunction or lambda, which is ticked in the provided ticking group */
-	FDelegateHandle AddSystem(TFunction<void (float, entt::registry&)> Lambda,
-							  ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
+	FDelegateHandle AddSystem(void (*InFunc)(float, entt::registry&), ESystemTickingGroup TickingGroup = ESystemTickingGroup::PrePhysics);
 
 	/** Remove a system */
 	bool RemoveSystem(const FDelegateHandle& Handle);

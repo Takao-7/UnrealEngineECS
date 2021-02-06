@@ -90,8 +90,7 @@ const entt::registry& IECSGameInstanceInterface::GetRegistry() const
 }
 
 //////////////////////////////////////////////////
-FDelegateHandle IECSGameInstanceInterface::AddSystem(TBaseStaticDelegateInstance<void (float, entt::registry&)>::FFuncPtr InFunc,
-													 ESystemTickingGroup TickingGroup)
+FDelegateHandle IECSGameInstanceInterface::AddSystem(void (*InFunc)(float, entt::registry&), ESystemTickingGroup TickingGroup)
 {
 	switch (TickingGroup)
 	{
@@ -102,37 +101,6 @@ FDelegateHandle IECSGameInstanceInterface::AddSystem(TBaseStaticDelegateInstance
 	case ESystemTickingGroup::PostPhysics: 
 	default:
 		return PostPhysicsTickFunction.Systems.AddStatic(InFunc);
-	}
-}
-
-template <typename UserClass>
-FDelegateHandle IECSGameInstanceInterface::AddSystem(UserClass* InUserObject,
-													 typename TMemFunPtrType<false, UserClass, void(float, entt::registry&)>::Type InFunc,
-													 ESystemTickingGroup TickingGroup)
-{
-	switch (TickingGroup)
-	{
-	case ESystemTickingGroup::PrePhysics:
-		return PrePhysicsTickFunction.Systems.AddUObject(InUserObject, InFunc);
-	case ESystemTickingGroup::DuringPhysics: 
-		return DuringPhysicsTickFunction.Systems.AddUObject(InUserObject, InFunc);
-	case ESystemTickingGroup::PostPhysics: 
-	default:
-        return PostPhysicsTickFunction.Systems.AddUObject(InUserObject, InFunc);
-	}
-}
-
-FDelegateHandle IECSGameInstanceInterface::AddSystem(TFunction<void(float, entt::registry&)> Lambda, ESystemTickingGroup TickingGroup)
-{
-	switch (TickingGroup)
-	{
-	case ESystemTickingGroup::PrePhysics:
-		return PrePhysicsTickFunction.Systems.AddLambda(Lambda);
-	case ESystemTickingGroup::DuringPhysics: 
-		return DuringPhysicsTickFunction.Systems.AddLambda(Lambda);
-	case ESystemTickingGroup::PostPhysics: 
-	default:
-        return PostPhysicsTickFunction.Systems.AddLambda(Lambda);
 	}
 }
 

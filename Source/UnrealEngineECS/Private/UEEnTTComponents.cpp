@@ -16,22 +16,20 @@ FActorPtrComponent::FActorPtrComponent(AActor* Actor)
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-void UECS_BridgeComponent::BeginPlay()
+void UECS_BridgeComponent::RegisterComponentWithECS()
 {
-	Super::BeginPlay();
+	Super::RegisterComponentWithECS();
 
-	// We are not calling RegisterComponentWithECS() on us (and we don't have code in that function), because we will call that function
-	// on all our owner's components, which will include us
-	IECSComponentWrapper::RegisterComponentWithECS();
 	EntityHandle.AddComponent<FActorPtrComponent>(GetOwner());
 
 	// Register all other ECS components from our owner
-	for (auto Component : GetOwner()->GetComponents())
+	TInlineComponentArray<UECSComponentWrapper*> WrapperComponents (GetOwner());
+	for (UECSComponentWrapper* Component : WrapperComponents)
 	{
-		if (IECSComponentWrapper* WrapperComp = Cast<IECSComponentWrapper>(Component))
+		if (Component != this)
 		{
-			WrapperComp->EntityHandle = EntityHandle;
-			WrapperComp->RegisterComponentWithECS();
+			Component->EntityHandle = EntityHandle;
+			Component->RegisterComponentWithECS();			
 		}
 	}
 }
@@ -40,18 +38,18 @@ void UECS_BridgeComponent::BeginPlay()
 //////////////////////////////////////////////////
 void UECS_SyncTransformComponent::RegisterComponentWithECS()
 {
-	IECSComponentWrapper::RegisterComponentWithECS();
-	
+	Super::RegisterComponentWithECS();	
 	EntityHandle.AddOrReplaceComponent<FTransform>(GetOwner()->GetActorTransform());
-
-	UpdateECSComponent_Implementation();
+	UpdateECSComponent();
 }
 
-void UECS_SyncTransformComponent::UpdateECSComponent_Implementation()
+void UECS_SyncTransformComponent::UpdateECSComponent()
 {
+	USceneComponent* OwnerRoot = GetOwner()->GetRootComponent();
+	
 	if (SyncType == ESyncType::Disabled)
 	{
-		GetOwner()->GetRootComponent()->TransformUpdated.Remove(TransformChangedHandle);
+		OwnerRoot->TransformUpdated.Remove(TransformChangedHandle);
 		TransformChangedHandle.Reset();
 
 		EntityHandle.RemoveComponentChecked<FSyncTransformToECS>();
@@ -66,15 +64,14 @@ void UECS_SyncTransformComponent::UpdateECSComponent_Implementation()
 
 		if (!TransformChangedHandle.IsValid())
 		{
-			TransformChangedHandle = GetOwner()->GetRootComponent()->TransformUpdated.AddUObject(this,
-				&UECS_SyncTransformComponent::OnRootComponentTransformChanged);
+			TransformChangedHandle = OwnerRoot->TransformUpdated.AddUObject(this, &UECS_SyncTransformComponent::OnRootComponentTransformChanged);
 		}
 	}
 	else if (SyncType == ESyncType::ECS_To_Actor)
 	{
 		if (EntityHandle.RemoveComponentChecked<FSyncTransformToECS>())
 		{
-			GetOwner()->GetRootComponent()->TransformUpdated.Remove(TransformChangedHandle);
+			OwnerRoot->TransformUpdated.Remove(TransformChangedHandle);
 			TransformChangedHandle.Reset();
 		}
 		
@@ -87,8 +84,7 @@ void UECS_SyncTransformComponent::UpdateECSComponent_Implementation()
 
 		if (!TransformChangedHandle.IsValid())
 		{
-			TransformChangedHandle = GetOwner()->GetRootComponent()->TransformUpdated.AddUObject(this,
-                &UECS_SyncTransformComponent::OnRootComponentTransformChanged);
+			TransformChangedHandle = OwnerRoot->TransformUpdated.AddUObject(this, &UECS_SyncTransformComponent::OnRootComponentTransformChanged);
 		}
 	}
 }
