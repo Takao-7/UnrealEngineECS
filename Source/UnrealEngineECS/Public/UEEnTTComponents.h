@@ -34,6 +34,11 @@ struct FActorPtrComponent
     {
         return Pointer.Get();
     }
+
+	AActor* operator*() const
+    {
+	    return Pointer.Get();
+    }
 };
 
 //////////////////////////////////////////////////
@@ -144,13 +149,12 @@ struct FSyncTransformToActor
  * Main component to link an actor with the ECS. Every actor that wants to use any ECS component must have this component, too.
  * Adds a FActorPtrComponent to the entity */
 UCLASS(ClassGroup = "ECS", BlueprintType, meta = (BlueprintSpawnableComponent, DisplayName = "ECS Bridge Component"))
-class UNREALENGINEECS_API UECS_BridgeComponent : public UActorComponent, public IECSComponentWrapper
+class UNREALENGINEECS_API UECS_BridgeComponent : public UECSComponentWrapper
 {
     GENERATED_BODY()
 
 public:
-    virtual void BeginPlay() override;
-    virtual void RegisterComponentWithECS() override {};
+    virtual void RegisterComponentWithECS() override;
 };
 
 
@@ -158,17 +162,17 @@ public:
 //////////////////////////////////////////////////
 /** Synchronises this owner's transform with the ECS */
 UCLASS(ClassGroup = "ECS", BlueprintType, meta = (BlueprintSpawnableComponent, DisplayName = "ECS Transform Component"))
-class UNREALENGINEECS_API UECS_SyncTransformComponent : public UActorComponent, public IECSComponentWrapper
+class UNREALENGINEECS_API UECS_SyncTransformComponent : public UECSComponentWrapper
 {
     GENERATED_BODY()
 
 public:
     virtual void RegisterComponentWithECS() override;
-    virtual void UpdateECSComponent_Implementation() override;
 
 private:
     void OnRootComponentTransformChanged(USceneComponent* UpdatedComponent, EUpdateTransformFlags UpdateTransformFlags,
                                          ETeleportType Teleport);
+    virtual void UpdateECSComponent();
 
 protected:
     UPROPERTY(EditDefaultsOnly, Category = "ECS")
