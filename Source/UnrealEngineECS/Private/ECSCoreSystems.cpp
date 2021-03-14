@@ -14,16 +14,39 @@ UECSCopyTransformToECS::UECSCopyTransformToECS()
 	TickFunction.TickGroup = ETickingGroup::TG_PrePhysics;
 }
 
+//////////////////////////////////////////////////
+void UECSCopyTransformToECS::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	// Connect an observer to the registry, which listens for entities with a transform, actor ptr and sync transform component 
+	Observer.Connect(*Registry, ECS::Collector.update<FTransform>().where<FActorPtrComponent, FSyncTransformToECS>());
+}
+
+void UECSCopyTransformToECS::Deinitialize()
+{
+	Super::Deinitialize();
+	Observer.Disconnect();
+}
+
+//////////////////////////////////////////////////
 void UECSCopyTransformToECS::RunSystem(float DeltaTime, ENamedThreads::Type CurrentThread) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_CopyTransformToECS);
 
-	auto View = Registry->View<FActorPtrComponent, FTransform, FSyncTransformToECS>();	
-	for (auto&& [Entity, Actor, Transform, SyncComp] : View.each())
+	// auto View = Registry->View<FActorPtrComponent, FTransform, FSyncTransformToECS>();	
+	// for (auto&& [Entity, Actor, Transform, SyncComp] : View.each())
+	// {
+	// 	Transform = Actor->GetActorTransform();
+	// 	SyncComp.bSyncTransform = false;
+	// }
+
+	Observer.Each([&](const auto Entity)
 	{
+		auto&& [Actor, Transform, SyncComp] = Registry->GetEntTTReg().get<FActorPtrComponent, FTransform, FSyncTransformToECS>(Entity);
 		Transform = Actor->GetActorTransform();
-		SyncComp.bSyncTransform = false;
-	}
+        SyncComp.bSyncTransform = false;
+	});
 }
 
 

@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "ECSRegistry.h"
 #include "UEEnTTSystem.h"
 #include "ECSCoreSystems.generated.h"
 
@@ -13,7 +14,12 @@ class UECSCopyTransformToECS : public UECSSystem
 
 public:
 	UECSCopyTransformToECS();
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 	virtual void RunSystem(float DeltaTime, ENamedThreads::Type CurrentThread) const override;
+
+protected:
+	FECSObserver Observer;
 };
 
 

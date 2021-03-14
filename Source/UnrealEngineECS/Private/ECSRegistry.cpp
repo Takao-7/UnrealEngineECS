@@ -1,4 +1,5 @@
-﻿#include "ECSRegistry.h"
+﻿
+#include "ECSRegistry.h"
 #include "UEEnTTEntity.h"
 
 //////////////////////////////////////////////////
@@ -40,4 +41,12 @@ void UECSRegistry::Deinitialize()
 UECSRegistry& UECSRegistry::GetRegistry()
 {
 	return *RegistryPtr;
+}
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+void FECSObserver::Disconnect()
+{
+	Observer.disconnect();
 }

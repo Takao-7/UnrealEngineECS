@@ -2,10 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/GameInstanceSubsystem.h"
-
-#include "ThirdParty/EnTT/entt/single_include/entt/entt.hpp"
+#include "ECSIncludes.h"
 #include "ECSRegistry.generated.h"
 
 
@@ -30,12 +28,13 @@ using TECSView = entt::view<Type...>;
 template<typename... Type>
 using TECSGroup = entt::group<Type...>;
 
+
 //////////////////////////////////////////////////
 class UNREALENGINEECS_API IECSRegistryInterface
 {
 	friend struct FEntity;
 
-public:
+public:	
 	/**
 	 * @brief Returns the number of existing components of the given type.
 	 * @tparam Component Type of component of which to return the size.
@@ -198,6 +197,95 @@ public:
 		return Registry.group<Owned...>(TECSExclude<Exclude...>());
 	}
 
+	//////////////////////////////////////////////////
+	/**
+     * @brief Returns a sink object for the given component.
+     *
+     * The sink returned by this function can be used to receive notifications
+     * whenever a new instance of the given component is created and assigned to
+     * an entity.<br/>
+     * The function type for a listener is equivalent to:
+     *
+     * @code{.cpp}
+	* void(basic_registry<Entity> &, Entity);
+	* @endcode
+    *
+    * Listeners are invoked **after** the component has been assigned to the
+    * entity.
+    *
+    * @sa sink
+    *
+    * @tparam Component Type of component of which to get the sink.
+    * @return A temporary sink object.
+    */
+    template<typename Component>
+	[[nodiscard]] auto OnConstruct()
+	{
+		return Registry.on_construct<Component>();
+	}
+
+	/**
+	* @brief Returns a sink object for the given component.
+	*
+	* The sink returned by this function can be used to receive notifications
+	* whenever an instance of the given component is explicitly updated.<br/>
+	* The function type for a listener is equivalent to:
+	*
+	* @code{.cpp}
+	* void(basic_registry<Entity> &, Entity);
+	* @endcode
+	*
+	* Listeners are invoked **after** the component has been updated.
+	*
+	* @sa sink
+	*
+	* @tparam Component Type of component of which to get the sink.
+	* @return A temporary sink object.
+	*/
+	template<typename Component>
+    [[nodiscard]] auto OnUpdate()
+	{
+		return Registry.on_update<Component>();
+	}
+
+	/**
+	* @brief Returns a sink object for the given component.
+	*
+	* The sink returned by this function can be used to receive notifications
+	* whenever an instance of the given component is removed from an entity and
+	* thus destroyed.<br/>
+	* The function type for a listener is equivalent to:
+	*
+	* @code{.cpp}
+	* void(basic_registry<Entity> &, Entity);
+	* @endcode
+	*
+	* Listeners are invoked **before** the component has been removed from the
+	* entity.
+	*
+	* @sa sink
+	*
+	* @tparam Component Type of component of which to get the sink.
+	* @return A temporary sink object.
+	*/
+	template<typename Component>
+    [[nodiscard]] auto OnDestroy()
+	{
+		return Registry.on_destroy<Component>();
+	}
+
+	
+	//////////////////////////////////////////////////
+	const entt::registry& GetEntTTReg() const
+	{
+		return Registry;
+	}
+
+	entt::registry& GetEntTTReg()
+	{
+		return Registry;
+	}
+
 private:
 	entt::registry Registry;
 };
@@ -242,3 +330,50 @@ public:
 private:
 	static UECSRegistry* RegistryPtr;
 };
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+template<typename... Args>
+using FECSCollector = entt::basic_collector<Args...>;
+
+namespace ECS
+{
+	/*! @brief Variable template used to ease the definition of collectors. */
+	inline constexpr FECSCollector<> Collector {};
+}
+
+//////////////////////////////////////////////////
+class FECSObserver
+{
+public:
+	template<typename... Matcher>
+	void Connect(IECSRegistryInterface& Registry, const FECSCollector<Matcher...>& Collector)
+	{
+		Observer.connect(Registry.GetEntTTReg(), Collector);
+	}
+
+	void Disconnect();
+
+	template<typename Func>
+	void Each(Func Function);
+	
+	template<typename Func>
+    void Each(Func Function) const;
+
+private:
+	entt::observer Observer;
+};
+
+//////////////////////////////////////////////////
+template <typename Func>
+void FECSObserver::Each(Func Function)
+{
+	Observer.each(Function);
+}
+
+template <typename Func>
+void FECSObserver::Each(Func Function) const
+{
+	Observer.each(Function);
+}
