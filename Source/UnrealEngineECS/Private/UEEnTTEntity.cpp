@@ -5,7 +5,7 @@ const FEntity FEntity::NullEntity = FEntity();
 
 
 //////////////////////////////////////////////////
-FEntity::FEntity(entt::entity Handle, entt::registry& Registry)
+FEntity::FEntity(entt::entity Handle, IECSRegistryInterface& Registry)
 {
 	this->EntityHandle = Handle;
 	this->OwningRegistry = &Registry;

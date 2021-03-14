@@ -2,57 +2,70 @@
 
 #pragma once
 
-#include "ECSIncludes.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 
-struct FSyncTransformToActor;
-struct FSyncTransformToECS;
-struct FActorPtrComponent;
+#include "UEEnTTSystem.generated.h"
 
-
-/**
- * Interface for non-static systems, which shouldn't run each tick
- *
- * Static system can be simple functions (@see ECSCoreSystems) or lambdas.
- */
-class UNREALENGINEECS_API IInstancedSystem
+USTRUCT()
+struct FECSSystemTickFunction : public FTickFunction
 {
-public:
-    virtual ~IInstancedSystem() = default;
+	GENERATED_BODY()
 
-	/** Called by the game instance to try to update this system */
-    void TryTickSystem(float DeltaTime, entt::registry& Registry);
+	UPROPERTY()
+	class UECSSystem* Target = nullptr;
 
-protected:
-	virtual void TickSystem(float DeltaTime, entt::registry& Registry) const = 0;
+	/** 
+	* Abstract function actually execute the tick. 
+	* @param DeltaTime 					Frame time to advance, in seconds
+	* @param TickType 					Kind of tick for this frame
+	* @param CurrentThread 				Thread we are executing on, useful to pass along as new tasks are created
+	* @param MyCompletionGraphEvent 	Completion event for this task. Useful for holding the completion of this task until certain child
+	*									tasks are complete.
+	*/
+	UNREALENGINEECS_API virtual void ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread,
+                                                 const FGraphEventRef& MyCompletionGraphEvent) override;
 
-public:
-	/* Delay between updates. Set to <= 0 to update each tick. Can be changed freely at runtime */
-	float UpdateInterval = .0f;
-
-private:	
-	float TimeSinceLastUpdate = 0;
+	/** Abstract function to describe this tick. Used to print messages about illegal cycles in the dependency graph */
+	UNREALENGINEECS_API virtual FString DiagnosticMessage() override;
+	UNREALENGINEECS_API virtual FName DiagnosticContext(bool bDetailed) override;
 };
 
+template<>
+struct TStructOpsTypeTraits<FECSSystemTickFunction> : public TStructOpsTypeTraitsBase2<FECSSystemTickFunction>
+{
+	enum
+	{
+		WithCopy = false
+    };
+};
 
 //////////////////////////////////////////////////
-//////////////////////////////////////////////////
-namespace ECSCoreSystems
+/**
+ * Interface for systems.
+ * Systems run each tick (or at a given interval).
+ * Set the ticking related parameters through the tick function (@see TickFunction) in the constructor
+ */
+UCLASS(Abstract)
+class UNREALENGINEECS_API UECSSystem : public UGameInstanceSubsystem
 {
-	/**
-	 * Copy transforms from actors to the ECS.
-	 * Called in PrePhysics ticking group BEFORE any other system is updated.
-	 * 
-	 * Required components: FActorPtrComponent, FTransform, FTransformSync
-	 * Required actor component: UECS_TransformSyncComponent 
-	 */
-	void CopyTransformToECS(entt::registry& Registry, entt::observer& Observer);
+	GENERATED_BODY()
 	
-	/**
-	 * Copy transforms from the ECS to the linked actor.
-	 * Called in PrePhysics ticking group AFTER all other systems are updated (this system may move actor's so we have to update it here)
-	 * 
-	 * Required components: FActorPtrComponent, FTransform & FTransformSync
-	 * Required actor component: UECS_TransformSyncComponent
-	 */
-	void CopyTransformToActor(entt::registry& Registry, entt::observer& Observer);
-}
+public:
+	virtual ~UECSSystem() = default;
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	/** Main function for systems. This is called each tick (or how long the tick function is set to) */
+	virtual void RunSystem(float DeltaTime, ENamedThreads::Type CurrentThread) const {};	
+	
+protected:
+	void RegisterTickFunction(UWorld* World);
+	
+	
+	//---------- Variables ----------//
+public:
+	FECSSystemTickFunction TickFunction;
+	class IECSRegistryInterface* Registry = nullptr;
+};

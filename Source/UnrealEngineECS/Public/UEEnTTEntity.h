@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "ECSIncludes.h"
+#include "ECSRegistry.h"
+
 #include "UEEnTTEntity.generated.h"
 
 
@@ -13,11 +15,11 @@ struct UNREALENGINEECS_API FEntity
 {
     GENERATED_BODY()
     
-    friend class entt::registry;
+    friend class IECSRegistryInterface;
     
 public:
     FEntity(){}
-    FEntity(entt::entity Handle, entt::registry& Registry);
+    FEntity(entt::entity Handle, IECSRegistryInterface& Registry);
 
 
     //---------- Functions ----------//
@@ -27,7 +29,7 @@ public:
 	Component& AddComponent(Args&&... args)
     {
     	checkf(!HasComponent<Component>(), TEXT("We already have a component with that class"));
-    	return OwningRegistry->emplace<Component>(EntityHandle, std::forward<Args>(args)...);
+    	return OwningRegistry->Registry.emplace<Component>(EntityHandle, std::forward<Args>(args)...);
     }
 
     /**
@@ -41,7 +43,7 @@ public:
     template<typename Component, typename... Args>
     decltype(auto) AddOrReplaceComponent(Args&&... args)
     {
-        return OwningRegistry->emplace_or_replace<Component, Args...>(EntityHandle, std::forward<Args>(args)...);
+        return OwningRegistry->Registry.emplace_or_replace<Component, Args...>(EntityHandle, std::forward<Args>(args)...);
     }
 
     /** Removes the given component from this entity. Asserts when we don't have the component */
@@ -49,7 +51,7 @@ public:
 	void RemoveComponent()
     {
     	checkf(HasComponent<Component>(), TEXT("We don't have a component with that class"));
-    	OwningRegistry->remove<Component>(EntityHandle);
+    	OwningRegistry->Registry.remove<Component>(EntityHandle);
     }
     
     /**
@@ -59,7 +61,7 @@ public:
     template<typename Component>
 	bool RemoveComponentChecked()
     {
-    	return OwningRegistry->remove_if_exists<Component>(EntityHandle) > 0;
+    	return OwningRegistry->Registry.remove_if_exists<Component>(EntityHandle) > 0;
     }
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
@@ -67,7 +69,7 @@ public:
 	Component& GetComponent()
     {
     	checkf(HasComponent<Component>(), TEXT("We don't have a component with that class"));
-    	return OwningRegistry->get<Component>(EntityHandle);
+    	return OwningRegistry->Registry.get<Component>(EntityHandle);
     }
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
@@ -75,7 +77,7 @@ public:
 	Component& GetComponent() const
     {
     	checkf(HasComponent<Component>(), TEXT("We don't have a component with that class"));
-    	return OwningRegistry->get<Component>(EntityHandle);
+    	return OwningRegistry->Registry.get<Component>(EntityHandle);
     }
 
     /** Returns the given component from this entity. Asserts when we don't have the component */
@@ -83,21 +85,21 @@ public:
     decltype(auto) GetComponents()
     {
         checkf(HasAllComponent<Component...>(), TEXT("We don't have all components with these classes"));
-        return OwningRegistry->get<Component...>(EntityHandle);
+        return OwningRegistry->Registry.get<Component...>(EntityHandle);
     }
 
     /** Do we have any of the given components? */
     template<typename... Component>
 	bool HasComponent() const
     {
-    	return OwningRegistry->any<Component...>(EntityHandle);
+    	return OwningRegistry->Registry.any<Component...>(EntityHandle);
     }
 
     /** Do we have all of the given components? */
     template<typename... Component>
 	bool HasAllComponent() const
     {
-    	return OwningRegistry->has<Component...>(EntityHandle);
+    	return OwningRegistry->Registry.has<Component...>(EntityHandle);
     }
 
 
@@ -119,5 +121,5 @@ private:
 
     /* The registry where this entity belongs to. Note that this is a raw pointer, however the main registry is (should be) in the game
      * instance object, which get's only destroyed when the is closed */
-    entt::registry* OwningRegistry = nullptr;
+    class IECSRegistryInterface* OwningRegistry = nullptr;
 };

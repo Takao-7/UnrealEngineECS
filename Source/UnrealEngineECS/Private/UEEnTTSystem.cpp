@@ -5,53 +5,62 @@
 #include "GameFramework/Actor.h"
 
 #include "UEEnTTComponents.h"
-
-
-DECLARE_CYCLE_STAT(TEXT("Copy transforms from ECS to actors"), STAT_CopyTransformToActor, STATGROUP_ECS);
-DECLARE_CYCLE_STAT(TEXT("Copy transforms from actors to ECS"), STAT_CopyTransformToECS, STATGROUP_ECS);
+#include "Engine/World.h"
 
 
 //////////////////////////////////////////////////
-void IInstancedSystem::TryTickSystem(float DeltaTime, entt::registry& Registry)
+void FECSSystemTickFunction::ExecuteTick(float DeltaTime, ELevelTick TickType, ENamedThreads::Type CurrentThread,
+										 const FGraphEventRef& MyCompletionGraphEvent)
 {
-	if (UpdateInterval <= .0f)
+	if (Target != nullptr)
 	{
-		TickSystem(DeltaTime, Registry);
-		return;
-	}
-
-	TimeSinceLastUpdate += DeltaTime;
-	if (TimeSinceLastUpdate >= UpdateInterval)
-	{
-		TimeSinceLastUpdate = .0f;
-		TickSystem(DeltaTime, Registry);
+		Target->RunSystem(DeltaTime, CurrentThread);
 	}
 }
 
 //////////////////////////////////////////////////
-void ECSCoreSystems::CopyTransformToECS(entt::registry& Registry, entt::observer& Observer)
+FString FECSSystemTickFunction::DiagnosticMessage()
 {
-	SCOPE_CYCLE_COUNTER(STAT_CopyTransformToECS);
-
-	Observer.each([&Registry](const entt::entity Entity)
-	{
-		auto&& [Actor, Transform, SyncComp] = Registry.get<FActorPtrComponent, FTransform, FSyncTransformToECS>(Entity);
-		
-		Transform = Actor->GetActorTransform();
-		SyncComp.bSyncTransform = false;
-	});
+	return Target->GetFullName() + TEXT("[ECS TickSystem]");
 }
 
-void ECSCoreSystems::CopyTransformToActor(entt::registry& Registry, entt::observer& Observer)
+FName FECSSystemTickFunction::DiagnosticContext(bool bDetailed)
 {
-	SCOPE_CYCLE_COUNTER(STAT_CopyTransformToActor);
-
-	Observer.each([&Registry](const entt::entity Entity)
+	if (bDetailed)
 	{
-		auto&& [Actor, Transform, SyncComp] = Registry.get<FActorPtrComponent, FTransform, FSyncTransformToActor>(Entity);
-		if (SyncComp.bSyncTransform)
-		{
-			Actor->SetActorTransform(Transform, SyncComp.bSweep, nullptr, SyncComp.TeleportType);			
-		}
-	});
+		FString ContextString = FString::Printf(TEXT("%s/%s"), *GetParentNativeClass(Target->GetClass())->GetName(),
+												*Target->GetClass()->GetName());
+		return FName(*ContextString);
+	}
+	else
+	{
+		return GetParentNativeClass(Target->GetClass())->GetFName();
+	}
+}
+
+
+//////////////////////////////////////////////////
+//////////////////////////////////////////////////
+void UECSSystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+	if (UWorld* World = GetWorld())
+	{
+		RegisterTickFunction(World);
+	}
+}
+
+void UECSSystem::Deinitialize()
+{
+	Super::Deinitialize();	
+	TickFunction.UnRegisterTickFunction();
+	TickFunction.Target = nullptr;
+}
+
+//////////////////////////////////////////////////
+void UECSSystem::RegisterTickFunction(UWorld* World)
+{	
+	ULevel* Level = World->PersistentLevel;
+	TickFunction.RegisterTickFunction(Level);
+	TickFunction.Target = this;
 }

@@ -1,14 +1,13 @@
 
 #include "ECSComponentWrapperInterface.h"
-#include "ECSGameInstanceInterface.h"
 
 
 void UECSComponentWrapper::RegisterComponentWithECS()
 {
 	if (EntityHandle == FEntity::NullEntity)
 	{
-		entt::registry& Registry = IECSGameInstanceInterface::GetRegistry(this);
-		EntityHandle = Registry.create();
+		UECSRegistry& Registry = UECSRegistry::GetRegistry();
+		EntityHandle = Registry.Create();
 	}
 }
 

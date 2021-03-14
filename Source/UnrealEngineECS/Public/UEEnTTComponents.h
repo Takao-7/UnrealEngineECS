@@ -14,7 +14,7 @@
 /* Simple name component */
 struct FNameComponent
 {    
-    FString Name = "Unnamed Entity";
+    FString Name = TEXT("Unnamed Entity");
 };
 
 //////////////////////////////////////////////////
